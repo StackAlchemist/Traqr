@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "traqr",
+    "name": "Traqr",
     "slug": "traqr",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/traqr-logo.png",
     "scheme": "traqr",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
