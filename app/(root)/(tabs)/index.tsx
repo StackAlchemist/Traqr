@@ -3,18 +3,8 @@ import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-gifted-charts";
-import { useFonts } from "expo-font";
 
 export default function Home() {
-  const [fontsLoaded] = useFonts({
-    CormorantGaramond_300Light: require("@expo-google-fonts/cormorant-garamond/300Light"),
-    CormorantGaramond_500Medium: require("@expo-google-fonts/cormorant-garamond/500Medium"),
-  });
-
-  // DM Sans falls back to system font
-  const serif300 = fontsLoaded ? "CormorantGaramond_300Light" : undefined;
-  const serif500 = fontsLoaded ? "CormorantGaramond_500Medium" : undefined;
-
   const categories = [
     { id: "0", name: "Food", amtSpent: 24000, percentage: 44, icon: "🍔", barColor: "#e8a020" },
     { id: "1", name: "Transport", amtSpent: 18000, percentage: 33, icon: "🚗", barColor: "#3a7bd5" },
@@ -51,7 +41,7 @@ export default function Home() {
           </Text>
         </View>
       </View>
-      <Text className="text-[19px] text-[#1a1a1a] tracking-tight" style={{ fontFamily: serif500 }}>
+      <Text className="text-[19px] text-[#1a1a1a] tracking-tight">
         ₦{item.amtSpent.toLocaleString()}
       </Text>
     </View>
@@ -81,7 +71,7 @@ export default function Home() {
             </Text>
           </View>
         </View>
-        <Text className="text-[18px] text-[#1a1a1a] tracking-tight" style={{ fontFamily: serif500 }}>
+        <Text className="text-[18px] text-[#1a1a1a] tracking-tight">
           ₦{item.amount.toLocaleString()}
         </Text>
       </View>
@@ -96,14 +86,14 @@ export default function Home() {
         <View className="flex-row items-center justify-between px-6 pt-5">
           <View>
             <Text className="text-[10px] text-[#a8a49c] tracking-[2px] mb-0.5">
-              GOOD MORNING
+              GOOD EVENING
             </Text>
-            <Text className="text-[30px] text-[#1a1a1a] tracking-tight" style={{ fontFamily: serif500 }}>
+            <Text className="text-[30px] text-[#1a1a1a] tracking-tight">
               Olamide
             </Text>
           </View>
           <View className="w-10 h-10 rounded-full bg-[#1a3328] border border-[#e8e4de] items-center justify-center">
-            <Text className="text-[17px] text-white" style={{ fontFamily: serif500 }}>O</Text>
+            <Text className="text-[17px] text-white">O</Text>
           </View>
         </View>
 
@@ -135,7 +125,7 @@ export default function Home() {
 
             <View className="flex-row items-start">
               <Text className="text-[20px] text-white/35 mt-1.5 mr-0.5">₦</Text>
-              <Text className="text-[46px] text-white leading-[52px] -tracking-[2px]" style={{ fontFamily: serif300 }}>
+              <Text className="text-[46px] text-white leading-[52px] -tracking-[2px]">
                 847,200
               </Text>
             </View>
