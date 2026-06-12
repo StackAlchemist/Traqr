@@ -2,6 +2,23 @@ import { View, Text, ScrollView, FlatList, TextInput, TouchableOpacity } from 'r
 import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useEffect } from "react";
+import { getTransactions } from "@/lib/transactions";
+
+
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const data = await getTransactions();
+
+      console.log(data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  fetchData();
+}, []);
 
 type Transaction = {
   id: string
