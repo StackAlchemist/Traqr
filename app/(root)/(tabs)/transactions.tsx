@@ -6,19 +6,6 @@ import { useEffect } from "react";
 import { getTransactions } from "@/lib/transactions";
 
 
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const data = await getTransactions();
-
-      console.log(data);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  fetchData();
-}, []);
 
 type Transaction = {
   id: string
@@ -26,6 +13,7 @@ type Transaction = {
   amount: number
   category: string
   time: string
+  date: string        // ← added: ISO date string "2026-06-13"
   icon: string
   source: 'receipt' | 'screenshot' | 'bank'
 }
@@ -42,28 +30,119 @@ const CATEGORY_COLOR: Record<string, string> = {
   Shopping:  '#A78BFA',
   Bills:     '#FF6B6B',
   Income:    '#2EE6A6',
+  Transfer:  '#60A5FA',  // ← add this
 }
 
+// ── Date helpers ────────────────────────────────────────────────────────────
+
+function toDateKey(dateVal: string | Date): string {
+  // Returns "2026-06-13"
+  return new Date(dateVal).toISOString().split('T')[0]
+}
+
+function getSectionLabel(dateKey: string): string {
+  const today     = toDateKey(new Date())
+  const yesterday = toDateKey(new Date(Date.now() - 86_400_000))
+
+  if (dateKey === today)     return 'TODAY'
+  if (dateKey === yesterday) return 'YESTERDAY'
+
+  // e.g. "JUNE 2026"
+  return new Date(dateKey).toLocaleDateString('en-US', {
+    month: 'long',
+    year:  'numeric',
+  }).toUpperCase()
+}
+
+// Groups an array of transactions into ordered sections: [{ label, data }]
+function getGroupKey(dateKey: string): string {
+  const today     = toDateKey(new Date())
+  const yesterday = toDateKey(new Date(Date.now() - 86_400_000))
+
+  if (dateKey === today)     return 'today'
+  if (dateKey === yesterday) return 'yesterday'
+
+  // Group everything else by month: "2026-05"
+  return dateKey.slice(0, 7)
+}
+
+
+
+function groupByDate(transactions: Transaction[]) {
+  const map = new Map<string, Transaction[]>()
+
+  for (const t of transactions) {
+    const key = getGroupKey(t.date)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(t)
+  }
+
+  const sortedKeys = [...map.keys()].sort((a, b) => b.localeCompare(a))
+
+  return sortedKeys.map((key) => ({
+    label: getSectionLabel(key),
+    data:  map.get(key)!,
+  }))
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function Transactions() {
-  const todayTransactions: Transaction[] = [
-    { id: '1', merchant: 'Chicken Republic', amount: 7500,  category: 'Food',      time: '10:00 AM', icon: '🍗', source: 'screenshot' },
-    { id: '2', merchant: 'Bolt',             amount: 4200,  category: 'Transport', time: '08:45 AM', icon: '🚖', source: 'bank'       },
-  ]
 
-  const yesterdayTransactions: Transaction[] = [
-    { id: '3', merchant: 'Shoprite', amount: 18000, category: 'Shopping', time: '03:20 PM', icon: '🛒', source: 'receipt'    },
-    { id: '4', merchant: 'MTN',      amount: 1000,  category: 'Bills',    time: '01:10 PM', icon: '📱', source: 'bank'       },
-    { id: '5', merchant: 'Airtel',   amount: 5000,  category: 'Income',   time: '09:00 AM', icon: '💰', source: 'screenshot' },
-  ]
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const mayTransactions: Transaction[] = [
-    { id: '6',  merchant: 'Amazon',  amount: 12000, category: 'Shopping', time: '11:00 AM', icon: '🛒', source: 'receipt'    },
-    { id: '7',  merchant: 'Netflix', amount: 4500,  category: 'Bills',    time: '12:00 PM', icon: '🎬', source: 'bank'       },
-    { id: '8',  merchant: 'Spotify', amount: 2000,  category: 'Bills',    time: '12:00 PM', icon: '🎵', source: 'bank'       },
-    { id: '9',  merchant: 'Jumia',   amount: 8500,  category: 'Shopping', time: '02:30 PM', icon: '📦', source: 'screenshot' },
-    { id: '10', merchant: 'DSTV',    amount: 6000,  category: 'Bills',    time: '09:00 AM', icon: '📺', source: 'bank'       },
-    { id: '11', merchant: 'Salary',  amount: 250000,category: 'Income',   time: '08:00 AM', icon: '💰', source: 'bank'       },
-  ]
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getTransactions();
+        console.log('getTransactions response:', data);
+        setTransactions(data.data);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const CATEGORY_MAP: Record<string, string> = {
+    DATA:        'Bills',
+    AIRTIME:     'Bills',
+    TRANSFER:    'Transfer',
+    FOOD:        'Food',
+    TRANSPORT:   'Transport',
+    SHOPPING:    'Shopping',
+    INCOME:      'Income',
+    
+    // add more as your AI starts returning new categories
+  }
+  
+  const mappedTransactions: Transaction[] = transactions.map((transaction) => {
+    const dateObj = transaction.transactionAt
+      ? new Date(transaction.transactionAt)
+      : new Date(transaction.createdAt)
+  
+    return {
+      id:       transaction.id,
+      merchant: transaction.merchant,
+      amount:   transaction.amount,
+      category: CATEGORY_MAP[transaction.category] ?? transaction.category,
+      date:     toDateKey(dateObj),
+      time:     dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      icon:     '💳',
+      source:
+        transaction.source === 'RECEIPT'   ? 'receipt'    :
+        transaction.source === 'STATEMENT' ? 'bank'       :
+                                             'screenshot',
+    }
+  });
+
+  const totalSpent = mappedTransactions
+    .filter((t) => t.category !== 'Income')   // optional: exclude income
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const sections = groupByDate(mappedTransactions);   // ← the grouped data
 
   const filters = ['All', 'Food', 'Transport', 'Shopping', 'Bills', 'Income']
   const [selectedFilter, setSelectedFilter] = useState('All')
@@ -83,43 +162,35 @@ export default function Transactions() {
     const isFirst = index === 0
     const isLast  = index === total - 1
     const isOnly  = total === 1
-    const src = SOURCE_META[item.source]
+    const src      = SOURCE_META[item.source]
     const catColor = CATEGORY_COLOR[item.category] ?? '#c0bbb4'
     const isIncome = item.category === 'Income'
 
     return (
       <View
         className={`bg-white px-4 py-3.5 flex-row items-center justify-between border-[#e8e4de]
-          ${isOnly  ? 'rounded-2xl border'                              : ''}
-          ${!isOnly && isFirst ? 'rounded-t-2xl border border-b-0'     : ''}
+          ${isOnly  ? 'rounded-2xl border'                                  : ''}
+          ${!isOnly && isFirst ? 'rounded-t-2xl border border-b-0'         : ''}
           ${!isOnly && isLast  ? 'rounded-b-2xl border border-t-[#f0ece6]' : ''}
           ${!isOnly && !isFirst && !isLast ? 'border-x border-b border-[#e8e4de] border-t-[#f0ece6]' : ''}
         `}
       >
-        {/* Icon */}
         <View className="w-10 h-10 rounded-xl bg-[#f5f3ef] border border-[#e8e4de] items-center justify-center mr-3 flex-shrink-0">
           <Text className="text-lg">{item.icon}</Text>
         </View>
 
-        {/* Details */}
         <View className="flex-1">
           <Text className="text-[13px] font-medium text-[#1a1a1a] mb-1" numberOfLines={1}>
             {item.merchant}
           </Text>
-
           <View className="flex-row items-center gap-2 flex-wrap">
-            {/* Category dot */}
             <View className="flex-row items-center gap-1">
               <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: catColor }} />
               <Text className="text-[10px] text-[#c0bbb4]">{item.category}</Text>
             </View>
-
             <Text className="text-[10px] text-[#e8e4de]">·</Text>
             <Text className="text-[10px] text-[#c0bbb4]">{item.time}</Text>
-
             <Text className="text-[10px] text-[#e8e4de]">·</Text>
-
-            {/* Source badge */}
             <View className="flex-row items-center gap-0.5 bg-[#f5f3ef] border border-[#e8e4de] rounded-full px-1.5 py-0.5">
               <Text style={{ fontSize: 9 }}>{src.emoji}</Text>
               <Text className="text-[9px] text-[#a8a49c]">{src.label}</Text>
@@ -127,7 +198,6 @@ export default function Transactions() {
           </View>
         </View>
 
-        {/* Amount */}
         <Text
           className="text-[15px] font-semibold tracking-tight ml-2"
           style={{ color: isIncome ? '#1db464' : '#1a1a1a' }}
@@ -138,13 +208,7 @@ export default function Transactions() {
     )
   }
 
-  const Section = ({
-    label,
-    data,
-  }: {
-    label: string
-    data: Transaction[]
-  }) => {
+  const Section = ({ label, data }: { label: string; data: Transaction[] }) => {
     const filtered = filterData(data)
     if (filtered.length === 0) return null
     return (
@@ -175,7 +239,14 @@ export default function Transactions() {
           </Text>
           <View className="flex-row items-center gap-2">
             <View className="flex-row items-center gap-1.5 bg-[#eaf7f0] border border-[#b6e8ce] rounded-full px-3 py-1">
-              <Text className="text-[11px] text-[#0d7a4a]">324 transactions</Text>
+              <Text className="text-[11px] text-[#0d7a4a]">
+                ₦{totalSpent.toLocaleString()} spent
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-1.5 bg-white border border-[#e8e4de] rounded-full px-3 py-1">
+              <Text className="text-[11px] text-[#8c857b]">
+                {mappedTransactions.length} transactions
+              </Text>
             </View>
           </View>
         </View>
@@ -210,16 +281,10 @@ export default function Transactions() {
                 key={filter}
                 onPress={() => setSelectedFilter(filter)}
                 className={`px-4 py-2 rounded-full border ${
-                  isSelected
-                    ? 'bg-[#1a3328] border-[#1a3328]'
-                    : 'bg-white border-[#e8e4de]'
+                  isSelected ? 'bg-[#1a3328] border-[#1a3328]' : 'bg-white border-[#e8e4de]'
                 }`}
               >
-                <Text
-                  className={`text-[12px] font-medium ${
-                    isSelected ? 'text-white' : 'text-[#a8a49c]'
-                  }`}
-                >
+                <Text className={`text-[12px] font-medium ${isSelected ? 'text-white' : 'text-[#a8a49c]'}`}>
                   {filter}
                 </Text>
               </TouchableOpacity>
@@ -237,10 +302,20 @@ export default function Transactions() {
           ))}
         </View>
 
-        {/* Sections */}
-        <Section label="TODAY"    data={todayTransactions}     />
-        <Section label="YESTERDAY" data={yesterdayTransactions} />
-        <Section label="MAY 2026" data={mayTransactions}       />
+        {/* Sections — now fully dynamic */}
+        {loading ? (
+          <Text className="text-[13px] text-[#c0bbb4] text-center mt-10">
+            Loading transactions...
+          </Text>
+        ) : sections.length === 0 ? (
+          <Text className="text-[13px] text-[#c0bbb4] text-center mt-10">
+            No transactions yet.
+          </Text>
+        ) : (
+          sections.map((section) => (
+            <Section key={section.label} label={section.label} data={section.data} />
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   )
