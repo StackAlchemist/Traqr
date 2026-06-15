@@ -33,7 +33,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   Transfer:  '#60A5FA',  // ← add this
 }
 
-// ── Date helpers ────────────────────────────────────────────────────────────
+// ── Date helpers
 
 function toDateKey(dateVal: string | Date): string {
   // Returns "2026-06-13"
@@ -95,7 +95,7 @@ export default function Transactions() {
     const fetchData = async () => {
       try {
         const data = await getTransactions();
-        console.log('getTransactions response:', data);
+        // console.log('getTransactions response:', data);
         setTransactions(data.data);
       } catch (error) {
         console.log(error);

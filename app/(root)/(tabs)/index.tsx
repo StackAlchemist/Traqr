@@ -1,82 +1,132 @@
-import { View, Text, FlatList, ScrollView } from "react-native";
-import React from "react";
+import { View, Text, FlatList, ScrollView, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-gifted-charts";
+import { getChartData, getRecentTransactions, getTopCategories } from "@/lib/transactions";
 
 export default function Home() {
-  const categories = [
-    { id: "0", name: "Food", amtSpent: 24000, percentage: 44, icon: "🍔", barColor: "#e8a020" },
-    { id: "1", name: "Transport", amtSpent: 18000, percentage: 33, icon: "🚗", barColor: "#3a7bd5" },
-    { id: "2", name: "Shopping", amtSpent: 12000, percentage: 22, icon: "🛍️", barColor: "#8b5cf6" },
-  ];
 
-  const transactions = [
-    { id: "1", merchant: "Chicken Republic", amount: 7500, category: "Food", date: "Today", icon: "🍗" },
-    { id: "2", merchant: "Bolt", amount: 4200, category: "Transport", date: "Yesterday", icon: "🚖" },
-  ];
+  const [topCategories, setTopCategories] = useState([]);  
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        setLoading(true)
+        const [categories, recent, chart] = await Promise.all([
+          getTopCategories(),
+          getRecentTransactions(),
+          getChartData(),
+        ])
+        setTopCategories(categories.data)
+        setRecentTransactions(recent.data)
+        setChartData(chart.data)
+        console.log('chartData', chart.data)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAll()
+  }, [])
 
-  const sparklineData = [
-    { value: 20 }, { value: 35 }, { value: 25 },
-    { value: 45 }, { value: 40 }, { value: 60 }, { value: 50 },
-  ];
+
+
+  const cat_icons = {
+
+    FOOD: "🍔",
+    TRANSPORT: "🚗",
+    SHOPPING: "🛍️",
+    BILLS: "💰",
+    HEALTH: "💪",
+    EDUCATION: "🎓",
+    DATA: "📱",
+    AIRTIME: "📱",
+    TRANSFER: "💰",
+    ENTERTAINMENT: "🎉",
+    OTHER: "💰",
+  }
+
+
+
+  const sparklineData = chartData.map((item) => ({ value: item.total }));
+
+  if (loading) { 
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#1db464" />
+      </View>
+    )
+  }
 
   const renderCategory = ({ item, index }) => (
-    <View className="bg-white border border-[#e8e4de] rounded-2xl p-4 mb-2.5 flex-row items-center justify-between overflow-hidden">
-      {/* Percentage bar */}
+    <View className="bg-white border border-[#e8e4de] rounded-2xl p-4 mb-2.5 flex-row items-center justify-between overflow-hidden relative">
+      {/* Color percentage bar (colored, visible, full height overlay) */}
       <View
-        className="absolute left-0 top-0 bottom-0 rounded-l-2xl opacity-[0.06]"
-        style={{ width: `${item.percentage}%`, backgroundColor: item.barColor }}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: `${item.percentage}%`,
+          backgroundColor: item.barColor || "#1db464",
+          borderTopLeftRadius: 16,
+          borderBottomLeftRadius: 16,
+          opacity: 0.14, // increased opacity for more visible color
+          zIndex: 0,
+        }}
       />
-      <View className="flex-row items-center gap-3.5">
+      <View className="flex-row items-center gap-3.5" style={{ zIndex: 1 }}>
         <View className="w-[38px] h-[38px] rounded-xl bg-[#f5f3ef] border border-[#e8e4de] items-center justify-center">
-          <Text className="text-lg">{item.icon}</Text>
+          <Text className="text-lg">{cat_icons[item.category]}</Text>
         </View>
         <View>
-          <Text className="text-[13px] text-[#2a2a2a] mb-0.5" >
-            {item.name}
+          <Text className="text-[13px] text-[#2a2a2a] mb-0.5">
+            {item.category}
           </Text>
-          <Text className="text-[11px] text-[#c0bbb4]" >
+          <Text className="text-[11px] text-[#c0bbb4]">
             {item.percentage}% of spending
           </Text>
         </View>
       </View>
-      <Text className="text-[19px] text-[#1a1a1a] tracking-tight">
-        ₦{item.amtSpent.toLocaleString()}
+      <Text className="text-[19px] text-[#1a1a1a] tracking-tight" style={{ zIndex: 1 }}>
+        ₦{item.total.toLocaleString()}
       </Text>
     </View>
   );
 
   const renderTransaction = ({ item, index }) => {
-    const isFirst = index === 0;
-    const isLast = index === transactions.length - 1;
+    const isFirst = index === 0
+    const isLast  = index === recentTransactions.length - 1
+  
+    const dateObj = item.transactionAt ?? item.createdAt
+    const date    = new Date(dateObj).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const icon    = cat_icons[item.category] ?? '💳'
+  
     return (
-      <View
-        className={`bg-white px-[18px] py-[15px] flex-row items-center justify-between border-[#e8e4de]
-          ${isFirst ? "rounded-t-2xl border border-b-0" : ""}
-          ${isLast ? "rounded-b-2xl border border-t-[#f0ece6]" : ""}
-          ${!isFirst && !isLast ? "border-x border-b border-[#e8e4de] border-t-[#f0ece6]" : ""}
-        `}
-      >
+      <View className={`bg-white px-[18px] py-[15px] flex-row items-center justify-between border-[#e8e4de]
+        ${isFirst ? "rounded-t-2xl border border-b-0" : ""}
+        ${isLast  ? "rounded-b-2xl border border-t-[#f0ece6]" : ""}
+        ${!isFirst && !isLast ? "border-x border-b border-[#e8e4de] border-t-[#f0ece6]" : ""}
+      `}>
         <View className="flex-row items-center gap-3 flex-1">
           <View className="w-[38px] h-[38px] rounded-xl bg-[#f5f3ef] border border-[#e8e4de] items-center justify-center">
-            <Text className="text-[17px]">{item.icon}</Text>
+            <Text className="text-[17px]">{icon}</Text>
           </View>
           <View>
-            <Text className="text-[13px] text-[#2a2a2a] mb-0.5">
-              {item.merchant}
-            </Text>
-            <Text className="text-[11px] text-[#c0bbb4]">
-              {item.category} · {item.date}
-            </Text>
+            <Text className="text-[13px] text-[#2a2a2a] mb-0.5">{item.merchant}</Text>
+            <Text className="text-[11px] text-[#c0bbb4]">{item.category} · {date}</Text>
           </View>
         </View>
         <Text className="text-[18px] text-[#1a1a1a] tracking-tight">
           ₦{item.amount.toLocaleString()}
         </Text>
       </View>
-    );
-  };
+    )
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#f5f3ef]">
@@ -86,7 +136,7 @@ export default function Home() {
         <View className="flex-row items-center justify-between px-6 pt-5">
           <View>
             <Text className="text-[10px] text-[#a8a49c] tracking-[2px] mb-0.5">
-              GOOD EVENING
+              {`GOOD ${new Date().getHours() < 12 ? 'MORNING' : new Date().getHours() < 18 ? 'AFTERNOON' : 'EVENING'}`}
             </Text>
             <Text className="text-[30px] text-[#1a1a1a] tracking-tight">
               Olamide
@@ -126,7 +176,7 @@ export default function Home() {
             <View className="flex-row items-start">
               <Text className="text-[20px] text-white/35 mt-1.5 mr-0.5">₦</Text>
               <Text className="text-[46px] text-white leading-[52px] -tracking-[2px]">
-                847,200
+                ₦{chartData.reduce((acc, item) => acc + item.total, 0).toLocaleString()}
               </Text>
             </View>
 
@@ -171,7 +221,7 @@ export default function Home() {
         </View>
 
         <FlatList
-          data={categories}
+          data={topCategories}
           renderItem={renderCategory}
           keyExtractor={(item) => item.id}
           scrollEnabled={false}
@@ -199,7 +249,7 @@ export default function Home() {
         </View>
 
         <FlatList
-          data={transactions}
+          data={recentTransactions.slice(0, 2)}
           renderItem={renderTransaction}
           keyExtractor={(item) => item.id}
           scrollEnabled={false}
