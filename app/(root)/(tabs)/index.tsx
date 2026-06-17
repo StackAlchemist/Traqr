@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-gifted-charts";
-import { getChartData, getRecentTransactions, getTopCategories } from "@/lib/transactions";
+import { getChartData, getRecentTransactions, getTopCategories, getAIInsight } from "@/lib/transactions";
 
 export default function Home() {
 
@@ -11,6 +11,8 @@ export default function Home() {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aiInsightLoading, setAiInsightLoading] = useState(true);
+  const [aiInsight, setAiInsight] = useState<{ insight: string; tips: string[] } | null>(null)
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -33,7 +35,21 @@ export default function Home() {
     fetchAll()
   }, [])
 
-
+  useEffect(() => {
+    const fetchAiInsight = async () => {
+      try {
+        setAiInsightLoading(true)
+        const data = await getAIInsight()
+        console.log('aiInsight raw response:', JSON.stringify(data))  // ← add this
+        setAiInsight(data.data)
+      } catch (error) {
+        console.error('aiInsight error:', error)  // ← and this
+      } finally {
+        setAiInsightLoading(false)
+      }
+    }
+    fetchAiInsight()
+  }, [])
 
   const cat_icons = {
 
@@ -228,15 +244,26 @@ export default function Home() {
           contentContainerStyle={{ paddingHorizontal: 24 }}
         />
 
-        {/* AI Insight */}
-        <View className="mx-6 mt-2.5 bg-white border-[0.5px] border-[#e8e4de] border-l-2 border-l-[#1db464] rounded-tr-2xl rounded-br-2xl p-4">
-          <Text className="text-[10px] text-[#1db464] tracking-[2px] mb-1">
-            AI INSIGHT
-          </Text>
-          <Text className="text-[12px] text-[#888079] leading-[18px]">
-            Food spending increased 24% this week. Consider meal prepping to reduce recurring costs.
-          </Text>
-        </View>
+{/* AI Insight */}
+<View className="mx-6 mt-2.5 bg-white border-[0.5px] border-[#e8e4de] border-l-2 border-l-[#1db464] rounded-tr-2xl rounded-br-2xl p-4">
+  <Text className="text-[10px] text-[#1db464] tracking-[2px] mb-1">
+    AI INSIGHT
+  </Text>
+  {aiInsightLoading ? (
+    <ActivityIndicator size="small" color="#1db464" />
+  ) : (
+    <>
+      <Text className="text-[12px] text-[#888079] leading-[18px]">
+        {aiInsight?.insight ?? "No insight available."}
+      </Text>
+      {/* {aiInsight?.tips?.map((tip, i) => (
+        <Text key={i} className="text-[12px] text-[#888079] leading-[18px] mt-1">
+          • {tip}
+        </Text>
+      ))} */}
+    </>
+  )}
+</View>
 
         {/* Recent Activity */}
         <View className="flex-row items-center justify-between px-6 pt-7 pb-3.5">
