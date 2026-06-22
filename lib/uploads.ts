@@ -12,7 +12,7 @@ export const uploadFiles = async (files: any[])=>{
     })
 
     const response = await api.post(
-        "/upload/",
+        "/uploads/",
         formData,
         {
           headers: {
